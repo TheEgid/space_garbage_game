@@ -119,7 +119,7 @@ def make_blink_stars(canvas):
     while coroutines:
         for coroutine in coroutines:
             try:
-                coroutine.send(None)
+                coroutine.send(None)  
             except StopIteration:
                 coroutines.remove(coroutine)
         canvas.refresh()

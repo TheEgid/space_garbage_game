@@ -1,11 +1,14 @@
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
+.zip
 *.checkpoint
 *.env
 *.pickle
 *.log
 *.txt
+images/
 !requirements.txt
+
