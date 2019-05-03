@@ -67,7 +67,7 @@ async def fill_orbit_with_garbage(canvas):
         garbage_frame = get_random_garbage_frame()
         garbage = get_frame_from_file(garbage_frame, frame_folder=r'frames')[0]
         coroutines.append(fly_garbage(canvas, place, garbage, speed=speed))
-        await sleep_delay(150)
+        await random_sleep_delay(350)
 
 
 def get_random_coordinates(canvas):
@@ -100,24 +100,36 @@ async def animate_spaceship():
         await sleep_delay(20)
 
 
-async def run_spaceship(canvas, start_row, start_column):
-    spaceship_size_x, spaceship_size_y = \
-        get_frame_size(spaceship_frames_coroutines[0])
-    row_max, column_max = canvas.getmaxyx()
+def make_fire(canvas, row, column):
+    offset = 2
+    coroutines.append(fire(canvas, row, column+offset, rows_speed=-0.007))
 
-    rocket_pos_column = start_column - spaceship_size_x // 2
-    rocket_pos_row = start_row - spaceship_size_y // 2
+
+async def run_spaceship(canvas):
+    frame_size_x, frame_size_y = get_frame_size(spaceship_frames_coroutines[0])
+    row_max, column_max = canvas.getmaxyx()
+    rocket_pos_row = (row_max * 0.5) - (frame_size_y // 2)
+    rocket_pos_column = (column_max * 0.5) - (frame_size_x // 2)
+
+    speed_row = speed_column = 0
 
     while True:
         for frame in spaceship_frames_coroutines:
-            rows_direction, columns_direction, _ = read_controls(canvas)
-            if BORDER_SIZE < (rocket_pos_row + rows_direction) < \
-                        (row_max - spaceship_size_x - BORDER_SIZE):
-                rocket_pos_row += rows_direction
+            rows_direction, columns_direction, space_direction = read_controls(canvas)
 
-            if BORDER_SIZE < (rocket_pos_column + columns_direction) < \
-                        (column_max - spaceship_size_y - BORDER_SIZE):
-                rocket_pos_column += columns_direction
+            speed_row, speed_column = update_speed(speed_row, speed_column,
+                                                   rows_direction, columns_direction)
+
+            if BORDER_SIZE < (rocket_pos_row + speed_row) < \
+                        (row_max - frame_size_x - BORDER_SIZE):
+                rocket_pos_row += speed_row
+
+            if BORDER_SIZE < (rocket_pos_column + speed_column) < \
+                        (column_max - frame_size_y - BORDER_SIZE):
+                rocket_pos_column += speed_column
+
+            if space_direction:
+                make_fire(canvas, rocket_pos_row, rocket_pos_column)
 
             draw_frame(canvas, rocket_pos_row, rocket_pos_column, frame)
             await sleep_delay(10)
@@ -143,21 +155,12 @@ def game_process(canvas):
     curses.update_lines_cols()
     canvas.nodelay(True)
 
-    x_max, y_max = canvas.getmaxyx()
-    start_row, start_column = x_max * 0.5, y_max * 0.5
-
-    row_speed = column_speed = 0
-
-    stars_amount = calc_stars_amount(canvas=canvas)
+    stars_amount = calc_stars_amount(canvas)
     make_blink_stars(canvas, stars_amount)
-
 
     coroutines.append(animate_spaceship())
 
-    fire_offset = 2
-    coroutines.append(run_spaceship(canvas, start_row, start_column+fire_offset))
-
-    coroutines.append(fire(canvas, start_row, start_column, rows_speed=-0.007))
+    coroutines.append(run_spaceship(canvas))
 
     coroutines.append(fill_orbit_with_garbage(canvas))
 
