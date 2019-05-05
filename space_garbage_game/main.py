@@ -1,6 +1,5 @@
 import random
 import curses
-import asyncio
 from itertools import cycle
 import os
 import sys
@@ -13,31 +12,11 @@ from curses_tools import draw_frame
 from curses_tools import get_frame_size
 from curses_tools import read_controls
 
-TIC_TIMEOUT = 0.1
-STARS_SYMBOLS = '+*.:'
-BORDER_SIZE = 2
-coroutines = []
-spaceship_frames_coroutines = []
+from globals_vars import coroutines, spaceship_frames_coroutines
+from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE
+from globals_vars import GARBAGE_FRAMES, STARS_SYMBOLS
 
-
-def get_frame_from_file(*args, frame_folder=r'frames'):
-    _frame = []
-    for frame_file in args:
-        filepath = os.path.join(frame_folder, frame_file)
-        with open(filepath, "r") as _file:
-            _frame.append(_file.read())
-    return tuple(_frame)
-
-
-async def sleep_delay(tics=1):
-    for cnt in range(int(tics // TIC_TIMEOUT)):
-        await asyncio.sleep(0)
-
-
-async def random_sleep_delay(min_delay=200, multiplic=10):
-    delay = random.randint(min_delay, min_delay * multiplic)
-    for cnt in range(delay):
-        await asyncio.sleep(0)
+from services import get_frames_from_file, sleep_delay, random_sleep_delay
 
 
 async def blink_star(canvas, row, column, symbol='*'):
@@ -53,20 +32,19 @@ async def blink_star(canvas, row, column, symbol='*'):
         await sleep_delay(30)
 
 
-def get_random_garbage_frame():
-    garbage_variants = [r'duck.txt', r'hubble.txt', r'lamp.txt',
-                        r'trash_large.txt', r'trash_small.txt', r'trash_xl.txt']
-    return random.choice(garbage_variants)
-
-
 async def fill_orbit_with_garbage(canvas):
+    global obstacles
     _, column_max = canvas.getmaxyx()
+    offset = 7
+    speed_correction = 0.001
+
     while True:
-        place = random.randint(1, column_max-10)
-        speed = (random.randint(4, 6)) * 0.001
-        garbage_frame = get_random_garbage_frame()
-        garbage = get_frame_from_file(garbage_frame, frame_folder=r'frames')[0]
-        coroutines.append(fly_garbage(canvas, place, garbage, speed=speed))
+        place = random.randint(1-offset, column_max-offset)
+        speed = (random.randint(3, 6)) * speed_correction
+        garbage_frame = random.choice(GARBAGE_FRAMES)
+        garbage = get_frames_from_file(garbage_frame)[0]
+        coroutines.append(fly_garbage(canvas, place, garbage, speed))
+
         await random_sleep_delay(350)
 
 
@@ -86,14 +64,13 @@ def calc_stars_amount(canvas, segment_ratio=50):
 def make_blink_stars(canvas, stars_amount):
     for star in range(stars_amount):
         symbol = random.choice(STARS_SYMBOLS)
-        row, column = get_random_coordinates(canvas=canvas)
+        row, column = get_random_coordinates(canvas)
         coroutines.append(blink_star(canvas, row, column, symbol))
 
 
 async def animate_spaceship():
-    global spaceship_frames_coroutines
-    _frames = get_frame_from_file(r'rocket_frame_1.txt',
-                                  r'rocket_frame_2.txt')
+    spaceship_frame1, spaceship_frame2 = SPACESHIP_FRAMES
+    _frames = get_frames_from_file(spaceship_frame1, spaceship_frame2)
     for item in cycle(_frames):
         spaceship_frames_coroutines.clear()
         spaceship_frames_coroutines.append(item)
@@ -108,8 +85,8 @@ def make_fire(canvas, row, column):
 async def run_spaceship(canvas):
     frame_size_x, frame_size_y = get_frame_size(spaceship_frames_coroutines[0])
     row_max, column_max = canvas.getmaxyx()
-    rocket_pos_row = (row_max * 0.5) - (frame_size_y // 2)
-    rocket_pos_column = (column_max * 0.5) - (frame_size_x // 2)
+    spaceship_pos_row = (row_max - frame_size_y) // 2
+    spaceship_pos_column = (column_max - frame_size_x) // 2
 
     speed_row = speed_column = 0
 
@@ -120,24 +97,28 @@ async def run_spaceship(canvas):
             speed_row, speed_column = update_speed(speed_row, speed_column,
                                                    rows_direction, columns_direction)
 
-            if BORDER_SIZE < (rocket_pos_row + speed_row) < \
+            if BORDER_SIZE < (spaceship_pos_row + speed_row) < \
                         (row_max - frame_size_x - BORDER_SIZE):
-                rocket_pos_row += speed_row
+                spaceship_pos_row += speed_row
 
-            if BORDER_SIZE < (rocket_pos_column + speed_column) < \
+            if BORDER_SIZE < (spaceship_pos_column + speed_column) < \
                         (column_max - frame_size_y - BORDER_SIZE):
-                rocket_pos_column += speed_column
+                spaceship_pos_column += speed_column
 
             if space_direction:
-                make_fire(canvas, rocket_pos_row, rocket_pos_column)
+                make_fire(canvas, spaceship_pos_row, spaceship_pos_column)
 
-            draw_frame(canvas, rocket_pos_row, rocket_pos_column, frame)
+            draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame)
             await sleep_delay(10)
-            draw_frame(canvas, rocket_pos_row, rocket_pos_column, frame,
+            draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame,
                            negative=True)
 
 
-def coroutines_runner(canvas):
+def start_coroutines(canvas):
+    curses.initscr()
+    curses.curs_set(0)
+    curses.update_lines_cols()
+    canvas.nodelay(True)
     while coroutines:
         for coroutine in coroutines:
             canvas.border()
@@ -149,11 +130,6 @@ def coroutines_runner(canvas):
 
 
 def game_process(canvas):
-    global coroutines
-    curses.initscr()
-    curses.curs_set(0)
-    curses.update_lines_cols()
-    canvas.nodelay(True)
 
     stars_amount = calc_stars_amount(canvas)
     make_blink_stars(canvas, stars_amount)
@@ -164,8 +140,7 @@ def game_process(canvas):
 
     coroutines.append(fill_orbit_with_garbage(canvas))
 
-    coroutines_runner(canvas)
-
+    start_coroutines(canvas)
 
 
 if __name__ == '__main__':
