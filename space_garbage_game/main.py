@@ -45,7 +45,7 @@ async def fill_orbit_with_garbage(canvas):
         garbage = get_frames_from_file(garbage_frame)[0]
         coroutines.append(fly_garbage(canvas, place, garbage, speed))
 
-        await random_sleep_delay(350)
+        await random_sleep_delay(200)
 
 
 def get_random_coordinates(canvas):
