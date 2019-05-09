@@ -5,18 +5,17 @@ import os
 import sys
 
 from physics import update_speed
-
 from fire_animation import fire
 from space_garbage import fly_garbage
 from curses_tools import draw_frame
 from curses_tools import get_frame_size
 from curses_tools import read_controls
-
-from globals_vars import coroutines, spaceship_frames_coroutines
-from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE
+from globals_vars import coroutines, spaceship_frames_coroutines, obstacles
+from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE, GAME_OVER_FRAME
 from globals_vars import GARBAGE_FRAMES, STARS_SYMBOLS
 
 from services import get_frames_from_file, sleep_delay, random_sleep_delay
+from services import get_garbage_delay_tics
 
 
 async def blink_star(canvas, row, column, symbol='*'):
@@ -82,6 +81,18 @@ def make_fire(canvas, row, column):
     coroutines.append(fire(canvas, row, column+offset, rows_speed=-0.007))
 
 
+async def show_gameover(canvas):
+    _frame = get_frames_from_file(GAME_OVER_FRAME[0])[0]
+    row_max, column_max = canvas.getmaxyx()
+    frame_size_x, frame_size_y = get_frame_size(_frame)
+    row = row_max / 2 - frame_size_x / 2
+    column = column_max / 2 - frame_size_y / 2
+    while True:
+        draw_frame(canvas, row, column, _frame)
+        await sleep_delay(10)
+        draw_frame(canvas, row, column, _frame, negative=True)
+
+
 async def run_spaceship(canvas):
     frame_size_x, frame_size_y = get_frame_size(spaceship_frames_coroutines[0])
     row_max, column_max = canvas.getmaxyx()
@@ -112,6 +123,15 @@ async def run_spaceship(canvas):
             await sleep_delay(10)
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame,
                            negative=True)
+
+            for obstacle in obstacles:
+                if obstacle.has_collision(spaceship_pos_row,
+                                          spaceship_pos_column,
+                                          frame_size_x,
+                                          frame_size_y):
+                    coroutines.append(show_gameover(canvas))
+                    obstacles.remove(obstacle)
+                    return None
 
 
 def start_coroutines(canvas):
