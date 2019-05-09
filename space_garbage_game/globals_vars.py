@@ -7,6 +7,8 @@ TIC_TIMEOUT = 0.1
 STARS_SYMBOLS = '+*.:'
 BORDER_SIZE = 2
 
+year = 1957
+
 FRAME_FOLDER = r'frames'
 
 GARBAGE_FRAMES = [r'duck.txt', r'hubble.txt', r'lamp.txt', r'trash_large.txt',

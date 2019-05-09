@@ -1,10 +1,9 @@
 import asyncio
 import curses
 from curses_tools import draw_frame, get_frame_size
-from globals_vars import obstacles
-from globals_vars import obstacles_in_last_collisions
+from globals_vars import obstacles_in_last_collisions, obstacles
 from globals_vars import EXPLOSION_FRAMES
-from services import get_frames_from_file, sleep_delay, random_sleep_delay
+from services import get_frames_from_file, sleep_delay
 
 
 async def explode(canvas, center_row, center_column):
@@ -13,9 +12,9 @@ async def explode(canvas, center_row, center_column):
 
     for frame in frames:
         draw_frame(canvas, center_row, center_column, frame)
-        await random_sleep_delay(20)
+        await sleep_delay(4)
         draw_frame(canvas, center_row, center_column, frame, negative=True)
-        await random_sleep_delay(10)
+        await sleep_delay(2)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3,
@@ -48,5 +47,3 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3,
         for obstacle in obstacles:
             if obstacle.has_collision(round(row), round(column)):
                 obstacles_in_last_collisions.append(obstacle)
-
-
