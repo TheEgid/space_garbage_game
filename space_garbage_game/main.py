@@ -1,19 +1,17 @@
+import os
+import sys
 import random
 import curses
 from itertools import cycle
-import os
-import sys
-
+from globals_vars import TIC_TIMEOUT, SHOOTING_YEAR, PHRASES_DICT
+from globals_vars import GARBAGE_FRAMES, STARS_SYMBOLS 
+from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE, GAME_OVER_FRAME
+from globals_vars import coroutines, spaceship_frames_coroutines
+from globals_vars import obstacles, year
 from physics import update_speed
 from fire_animation import fire
 from space_garbage import fly_garbage
-from curses_tools import draw_frame
-from curses_tools import get_frame_size
-from curses_tools import read_controls
-from globals_vars import coroutines, spaceship_frames_coroutines, obstacles
-from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE, GAME_OVER_FRAME
-from globals_vars import GARBAGE_FRAMES, STARS_SYMBOLS
-
+from curses_tools import read_controls, get_frame_size, draw_frame
 from services import get_frames_from_file, sleep_delay, random_sleep_delay
 from services import get_garbage_delay_tics
 
@@ -36,15 +34,19 @@ async def fill_orbit_with_garbage(canvas):
     _, column_max = canvas.getmaxyx()
     offset = 7
     speed_correction = 0.001
-
+    tics_correction = 500
+    tics = get_garbage_delay_tics(year)
     while True:
         place = random.randint(1-offset, column_max-offset)
-        speed = (random.randint(3, 6)) * speed_correction
+        speed = (random.randint(1, 3)) * speed_correction
         garbage_frame = random.choice(GARBAGE_FRAMES)
         garbage = get_frames_from_file(garbage_frame)[0]
         coroutines.append(fly_garbage(canvas, place, garbage, speed))
 
-        await random_sleep_delay(200)
+        if tics is not None:
+            await sleep_delay(tics*tics_correction)
+        else:
+            await sleep_delay(tics_correction)
 
 
 def get_random_coordinates(canvas):
@@ -81,7 +83,7 @@ def make_fire(canvas, row, column):
     coroutines.append(fire(canvas, row, column+offset, rows_speed=-0.007))
 
 
-async def show_gameover(canvas):
+async def show_game_over(canvas):
     _frame = get_frames_from_file(GAME_OVER_FRAME[0])[0]
     row_max, column_max = canvas.getmaxyx()
     frame_size_x, frame_size_y = get_frame_size(_frame)
@@ -93,20 +95,36 @@ async def show_gameover(canvas):
         draw_frame(canvas, row, column, _frame, negative=True)
 
 
+async def make_increment_years(canvas):
+    global year
+    info_area = canvas.derwin(1, 1)
+    phrase = ''
+    while True:
+        if PHRASES_DICT.get(year):
+            phrase = PHRASES_DICT.get(year)
+        msg = '{} {}'.format(year, phrase)
+        draw_frame(info_area, 0, 0, msg)
+        await sleep_delay(1000)
+        year+=1
+        draw_frame(info_area, 0, 0, msg, negative=True)
+
+
 async def run_spaceship(canvas):
     frame_size_x, frame_size_y = get_frame_size(spaceship_frames_coroutines[0])
     row_max, column_max = canvas.getmaxyx()
     spaceship_pos_row = (row_max - frame_size_y) // 2
     spaceship_pos_column = (column_max - frame_size_x) // 2
-
     speed_row = speed_column = 0
 
     while True:
         for frame in spaceship_frames_coroutines:
-            rows_direction, columns_direction, space_direction = read_controls(canvas)
+            rows_direction, columns_direction, \
+                                        space_direction = read_controls(canvas)
 
-            speed_row, speed_column = update_speed(speed_row, speed_column,
-                                                   rows_direction, columns_direction)
+            speed_row, speed_column = update_speed(speed_row,
+                                                   speed_column,
+                                                   rows_direction,
+                                                   columns_direction)
 
             if BORDER_SIZE < (spaceship_pos_row + speed_row) < \
                         (row_max - frame_size_x - BORDER_SIZE):
@@ -116,11 +134,12 @@ async def run_spaceship(canvas):
                         (column_max - frame_size_y - BORDER_SIZE):
                 spaceship_pos_column += speed_column
 
-            if space_direction:
+            if space_direction and year >= SHOOTING_YEAR:
                 make_fire(canvas, spaceship_pos_row, spaceship_pos_column)
 
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame)
             await sleep_delay(10)
+
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame,
                            negative=True)
 
@@ -129,12 +148,12 @@ async def run_spaceship(canvas):
                                           spaceship_pos_column,
                                           frame_size_x,
                                           frame_size_y):
-                    coroutines.append(show_gameover(canvas))
+                    coroutines.append(show_game_over(canvas))
                     obstacles.remove(obstacle)
                     return None
 
 
-def start_coroutines(canvas):
+def loop_coroutines(canvas):
     curses.initscr()
     curses.curs_set(0)
     curses.update_lines_cols()
@@ -147,23 +166,25 @@ def start_coroutines(canvas):
             except StopIteration:
                 coroutines.remove(coroutine)
         canvas.refresh()
+        time.sleep(TIC_TIMEOUT)
 
 
-def game_process(canvas):
+def run_game_process(canvas):
+    try:
+        stars_amount = calc_stars_amount(canvas)
+        make_blink_stars(canvas, stars_amount)
 
-    stars_amount = calc_stars_amount(canvas)
-    make_blink_stars(canvas, stars_amount)
-
-    coroutines.append(animate_spaceship())
-
-    coroutines.append(run_spaceship(canvas))
-
-    coroutines.append(fill_orbit_with_garbage(canvas))
-
-    start_coroutines(canvas)
+        coroutines.append(make_increment_years(canvas))
+        coroutines.append(animate_spaceship())
+        coroutines.append(run_spaceship(canvas))
+        coroutines.append(fill_orbit_with_garbage(canvas))
+        loop_coroutines(canvas)
+        
+    except KeyboardInterrupt:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
     dir_path = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, os.path.split(dir_path)[0])
-    curses.wrapper(game_process)
+    curses.wrapper(run_game_process)
