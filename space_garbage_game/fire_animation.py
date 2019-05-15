@@ -12,13 +12,12 @@ async def explode(canvas, center_row, center_column):
 
     for frame in frames:
         draw_frame(canvas, center_row, center_column, frame)
-        await sleep_delay(4)
+        await sleep_delay(0.1)
         draw_frame(canvas, center_row, center_column, frame, negative=True)
-        await sleep_delay(2)
+        await sleep_delay(0.2)
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.3,
-               columns_speed=0):
+async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
     row, column = start_row, start_column
     canvas.addstr(round(row), round(column), '*')
 

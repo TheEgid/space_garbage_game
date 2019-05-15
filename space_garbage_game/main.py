@@ -1,8 +1,10 @@
 import os
+import time
 import sys
 import random
 import curses
 from itertools import cycle
+import asyncio
 from globals_vars import TIC_TIMEOUT, SHOOTING_YEAR, PHRASES_DICT
 from globals_vars import GARBAGE_FRAMES, STARS_SYMBOLS 
 from globals_vars import SPACESHIP_FRAMES, BORDER_SIZE, GAME_OVER_FRAME
@@ -22,31 +24,29 @@ async def blink_star(canvas, row, column, symbol='*'):
         canvas.addstr(row, column, symbol, dim)
         await random_sleep_delay()
         canvas.addstr(row, column, symbol, normal)
-        await sleep_delay(30)
+        await sleep_delay(0.3)
         canvas.addstr(row, column, symbol, bold)
-        await sleep_delay(50)
+        await sleep_delay(0.5)
         canvas.addstr(row, column, symbol, normal)
-        await sleep_delay(30)
+        await sleep_delay(0.3)
 
 
 async def fill_orbit_with_garbage(canvas):
     global obstacles
     _, column_max = canvas.getmaxyx()
     offset = 7
-    speed_correction = 0.001
-    tics_correction = 500
     tics = get_garbage_delay_tics(year)
     while True:
         place = random.randint(1-offset, column_max-offset)
-        speed = (random.randint(1, 3)) * speed_correction
+        speed = (random.randint(1, 3))
         garbage_frame = random.choice(GARBAGE_FRAMES)
         garbage = get_frames_from_file(garbage_frame)[0]
         coroutines.append(fly_garbage(canvas, place, garbage, speed))
 
         if tics is not None:
-            await sleep_delay(tics*tics_correction)
+            await sleep_delay(tics)
         else:
-            await sleep_delay(tics_correction)
+            await sleep_delay(1)
 
 
 def get_random_coordinates(canvas):
@@ -75,12 +75,12 @@ async def animate_spaceship():
     for item in cycle(_frames):
         spaceship_frames_coroutines.clear()
         spaceship_frames_coroutines.append(item)
-        await sleep_delay(20)
+        await sleep_delay(2)
 
 
 def make_fire(canvas, row, column):
     offset = 2
-    coroutines.append(fire(canvas, row, column+offset, rows_speed=-0.007))
+    coroutines.append(fire(canvas, row, column+offset, rows_speed=-3))
 
 
 async def show_game_over(canvas):
@@ -91,7 +91,7 @@ async def show_game_over(canvas):
     column = column_max / 2 - frame_size_y / 2
     while True:
         draw_frame(canvas, row, column, _frame)
-        await sleep_delay(10)
+        await sleep_delay(0.9)
         draw_frame(canvas, row, column, _frame, negative=True)
 
 
@@ -104,8 +104,9 @@ async def make_increment_years(canvas):
             phrase = PHRASES_DICT.get(year)
         msg = '{} {}'.format(year, phrase)
         draw_frame(info_area, 0, 0, msg)
-        await sleep_delay(1000)
-        year+=1
+        await sleep_delay(1.5)
+        info_area.refresh()
+        year += 1
         draw_frame(info_area, 0, 0, msg, negative=True)
 
 
@@ -126,6 +127,8 @@ async def run_spaceship(canvas):
                                                    rows_direction,
                                                    columns_direction)
 
+            speed_row, speed_column = speed_row*10, speed_column*10
+
             if BORDER_SIZE < (spaceship_pos_row + speed_row) < \
                         (row_max - frame_size_x - BORDER_SIZE):
                 spaceship_pos_row += speed_row
@@ -138,19 +141,18 @@ async def run_spaceship(canvas):
                 make_fire(canvas, spaceship_pos_row, spaceship_pos_column)
 
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame)
-            await sleep_delay(10)
-
+            await asyncio.sleep(0)
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame,
                            negative=True)
 
-            for obstacle in obstacles:
-                if obstacle.has_collision(spaceship_pos_row,
-                                          spaceship_pos_column,
-                                          frame_size_x,
-                                          frame_size_y):
-                    coroutines.append(show_game_over(canvas))
-                    obstacles.remove(obstacle)
-                    return None
+            # for obstacle in obstacles:
+            #     if obstacle.has_collision(spaceship_pos_row,
+            #                               spaceship_pos_column,
+            #                               frame_size_x,
+            #                               frame_size_y):
+            #         coroutines.append(show_game_over(canvas))
+            #         obstacles.remove(obstacle)
+            #         return None
 
 
 def loop_coroutines(canvas):
@@ -159,14 +161,14 @@ def loop_coroutines(canvas):
     curses.update_lines_cols()
     canvas.nodelay(True)
     while coroutines:
+        time.sleep(TIC_TIMEOUT)
+
         for coroutine in coroutines:
-            canvas.border()
             try:
                 coroutine.send(None)
             except StopIteration:
                 coroutines.remove(coroutine)
         canvas.refresh()
-        time.sleep(TIC_TIMEOUT)
 
 
 def run_game_process(canvas):
