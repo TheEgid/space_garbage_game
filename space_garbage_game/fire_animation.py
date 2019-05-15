@@ -2,7 +2,7 @@ import asyncio
 import curses
 from curses_tools import draw_frame, get_frame_size
 from globals_vars import obstacles_in_last_collisions, obstacles
-from globals_vars import EXPLOSION_FRAMES
+from settings import EXPLOSION_FRAMES
 from services import get_frames_from_file, sleep_delay
 
 

@@ -1,8 +1,8 @@
 import asyncio
 import random
 import os
-from globals_vars import FRAME_FOLDER
-from globals_vars import TIC_TIMEOUT
+from settings import FRAME_FOLDER
+from settings import TIC_TIMEOUT
 
 
 async def sleep_delay(tics):
