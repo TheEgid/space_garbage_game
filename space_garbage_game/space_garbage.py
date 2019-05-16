@@ -24,9 +24,7 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
             draw_frame(canvas, row, column, garbage_frame, negative=True)
             row += speed
             obstacle.row += speed
-
             if obstacle in obstacles_in_last_collisions:
-
                 await explode(canvas, obstacle.row, obstacle.column)
                 obstacles.remove(obstacle)
                 obstacles_in_last_collisions.remove(obstacle)

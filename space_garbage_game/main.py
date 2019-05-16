@@ -75,7 +75,7 @@ async def animate_spaceship():
     for item in cycle(_frames):
         spaceship_frames_coroutines.clear()
         spaceship_frames_coroutines.append(item)
-        await sleep_delay(2)
+        await asyncio.sleep(0)
 
 
 def make_fire(canvas, row, column):
@@ -87,11 +87,11 @@ async def show_game_over(canvas):
     _frame = get_frames_from_file(GAME_OVER_FRAME[0])[0]
     row_max, column_max = canvas.getmaxyx()
     frame_size_x, frame_size_y = get_frame_size(_frame)
-    row = row_max / 2 - frame_size_x / 2
-    column = column_max / 2 - frame_size_y / 2
+    row = row_max // 2 - frame_size_x // 2
+    column = column_max // 2 - frame_size_y // 2
     while True:
         draw_frame(canvas, row, column, _frame)
-        await sleep_delay(0.9)
+        await asyncio.sleep(0)
         draw_frame(canvas, row, column, _frame, negative=True)
 
 
@@ -140,16 +140,13 @@ async def run_spaceship(canvas):
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame)
             await asyncio.sleep(0)
             draw_frame(canvas, spaceship_pos_row, spaceship_pos_column, frame,
-                           negative=True)
-#!!!!!!
+                       negative=True)
+
             for obstacle in obstacles:
-                if obstacle.has_collision(spaceship_pos_row,
-                                          spaceship_pos_column,
-                                          frame_size_x,
-                                          frame_size_y):
+                if obstacle.has_collision(spaceship_pos_row, spaceship_pos_column,
+                                          frame_size_x, frame_size_y):
                     coroutines.append(show_game_over(canvas))
-                    obstacles.remove(obstacle)
-                    return None
+                    return False
 
 
 def loop_coroutines(canvas):
@@ -161,11 +158,11 @@ def loop_coroutines(canvas):
         for coroutine in coroutines:
             try:
                 coroutine.send(None)
+                canvas.border()
+                canvas.refresh()
             except StopIteration:
                 coroutines.remove(coroutine)
         time.sleep(TIC_TIMEOUT)
-        canvas.border()
-        canvas.refresh()
 
 
 def run_game_process(canvas):
@@ -178,7 +175,7 @@ def run_game_process(canvas):
         coroutines.append(animate_spaceship())
         coroutines.append(run_spaceship(canvas))
         coroutines.append(fill_orbit_with_garbage(canvas))
-        loop_coroutines(canvas, info_area)
+        loop_coroutines(canvas)
         
     except KeyboardInterrupt:
         sys.exit(1)
