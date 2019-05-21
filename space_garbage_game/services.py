@@ -10,7 +10,7 @@ async def sleep_delay(tics):
         await asyncio.sleep(0)
 
 
-async def sleep_random_delay(min_delay=3, multiply=8):
+async def get_random_sleep_delay(min_delay=3, multiply=8):
     tics = random.randint(min_delay, min_delay * multiply)
     for cnt in range(int(tics*0.1 // TIC_TIMEOUT)):
         await asyncio.sleep(0)

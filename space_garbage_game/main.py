@@ -9,21 +9,22 @@ from settings import TIC_TIMEOUT, SHOOTING_YEAR
 from settings import PHRASES_DICT
 from settings import GARBAGE_FRAMES, STARS_SYMBOLS
 from settings import SPACESHIP_FRAMES, BORDER_SIZE, GAME_OVER_FRAME
-from globals_vars import coroutines, spaceship_frames_coroutines
-from globals_vars import obstacles, year
+import globals_vars
+from globals_vars import obstacles, year, coroutines
 from physics import update_speed
 from fire_animation import fire
 from space_garbage import fly_garbage
 from curses_tools import read_controls, get_frame_size, draw_frame
-from services import get_frames_from_file, sleep_delay, random_sleep_delay
+from services import get_frames_from_file, sleep_delay, get_random_sleep_delay
 from services import get_garbage_delay_tics
 
 
 async def blink_star(canvas, row, column, symbol='*'):
     dim, normal, bold = curses.A_DIM, curses.A_NORMAL, curses.A_BOLD
+    random_sleep_delay = get_random_sleep_delay()
     while True:
         canvas.addstr(row, column, symbol, dim)
-        await random_sleep_delay()
+        await random_sleep_delay
         canvas.addstr(row, column, symbol, normal)
         await sleep_delay(0.3)
         canvas.addstr(row, column, symbol, bold)
@@ -38,7 +39,7 @@ async def fill_orbit_with_garbage(canvas):
     tics = get_garbage_delay_tics(year)
     while True:
         place = random.randint(1-offset, column_max-offset)
-        speed = (random.randint(1, 3))
+        speed = random.randint(1, 3)
         garbage_frame = random.choice(GARBAGE_FRAMES)
         garbage = get_frames_from_file(garbage_frame)[0]
         coroutines.append(fly_garbage(canvas, place, garbage, speed))
@@ -72,9 +73,8 @@ def make_blink_stars(canvas, stars_amount):
 async def animate_spaceship():
     spaceship_frame1, spaceship_frame2 = SPACESHIP_FRAMES
     _frames = get_frames_from_file(spaceship_frame1, spaceship_frame2)
-    for item in cycle(_frames):
-        spaceship_frames_coroutines.clear()
-        spaceship_frames_coroutines.append(item)
+    for _frame in cycle(_frames):
+        globals_vars.spaceship_frames_coroutines = _frame
         await asyncio.sleep(0)
 
 
