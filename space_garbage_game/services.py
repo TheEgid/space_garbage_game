@@ -1,5 +1,4 @@
 import asyncio
-import random
 import os
 from settings import FRAME_FOLDER
 from settings import TIC_TIMEOUT
@@ -7,12 +6,6 @@ from settings import TIC_TIMEOUT
 
 async def sleep_delay(tics):
     for cnt in range(int(tics // TIC_TIMEOUT)):
-        await asyncio.sleep(0)
-
-
-async def get_random_sleep_delay(min_delay=3, multiply=8):
-    tics = random.randint(min_delay, min_delay * multiply)
-    for cnt in range(int(tics*0.1 // TIC_TIMEOUT)):
         await asyncio.sleep(0)
 
 
